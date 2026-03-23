@@ -3,3 +3,4 @@
 !public/
 !.gitignore
 !scanner/
+!scanner/scan.ps1
