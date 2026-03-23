@@ -235,6 +235,7 @@
             setBusy(false);
         }
     }
+    //hola
 
     async function loadFile(filename) {
         const res = await fetch(`/scanner/download?filename=${encodeURIComponent(filename)}`);
