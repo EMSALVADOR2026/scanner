@@ -115,17 +115,34 @@ class ScannerController extends Controller
     // Descarga el PDF al navegador
     public function download(Request $request)
     {
-        // FIX #3: basename() evita path traversal; además validamos extensión .pdf
-        $filename = basename($request->query('filename', ''));
+        $scanId     = $request->query('scan_id');
+        $statusFile = 'scanner/status.json';
 
-        if (!$filename || !str_ends_with(strtolower($filename), '.pdf')) {
-            return response()->json(['error' => 'Nombre de archivo inválido'], 400);
+        if (!$scanId) {
+            return response()->json(['error' => 'scan_id requerido'], 400);
+        }
+
+        // Lee el status.json para obtener el filename real
+        if (!Storage::disk('local')->exists($statusFile)) {
+            return response()->json(['error' => 'No hay escaneo activo'], 404);
+        }
+
+        $data = json_decode(Storage::disk('local')->get($statusFile), true);
+
+        if (($data['scan_id'] ?? '') !== $scanId) {
+            return response()->json(['error' => 'scan_id no coincide'], 404);
+        }
+
+        $filename = $data['filename'] ?? null;
+
+        if (!$filename) {
+            return response()->json(['error' => 'Filename no disponible'], 404);
         }
 
         $fullPath = storage_path(
             'app' . DIRECTORY_SEPARATOR . 'scanner' .
-            DIRECTORY_SEPARATOR . 'incoming' .
-            DIRECTORY_SEPARATOR . $filename
+                DIRECTORY_SEPARATOR . 'incoming' .
+                DIRECTORY_SEPARATOR . basename($filename)
         );
 
         Log::info('Descargando: ' . $fullPath);
@@ -142,33 +159,42 @@ class ScannerController extends Controller
             'Content-Disposition' => 'inline; filename="' . $filename . '"',
         ]);
     }
-
     // Confirma que el PDF fue tomado por el navegador
     public function confirm(Request $request)
     {
-        $filename = basename($request->input('filename', ''));
+        $scanId     = $request->input('scan_id');
+        $statusFile = 'scanner/status.json';
 
-        if (!$filename) {
-            return response()->json(['ok' => false, 'error' => 'filename requerido'], 400);
+        if (!$scanId) {
+            return response()->json(['ok' => false, 'error' => 'scan_id requerido'], 400);
         }
 
-        $from = 'scanner/incoming/'  . $filename;
-        $to   = 'scanner/processed/' . $filename;
-
-        if (Storage::disk('local')->exists($from)) {
-            Storage::disk('local')->move($from, $to);
+        // Obtiene el filename desde status.json
+        $filename = null;
+        if (Storage::disk('local')->exists($statusFile)) {
+            $data     = json_decode(Storage::disk('local')->get($statusFile), true);
+            $filename = $data['filename'] ?? null;
         }
 
-        // FIX #4: Limpia el lock también en confirm por si poll no lo hizo
+        // Mueve el archivo a processed
+        if ($filename) {
+            $from = 'scanner/incoming/'  . basename($filename);
+            $to   = 'scanner/processed/' . basename($filename);
+
+            if (Storage::disk('local')->exists($from)) {
+                Storage::disk('local')->move($from, $to);
+            }
+        }
+
+        // Limpia el lock y el status
         $lockFile = $this->scannerPath('scanner.lock');
-        if (file_exists($lockFile)) {
-            unlink($lockFile);
-        }
+        if (file_exists($lockFile)) unlink($lockFile);
 
-        Storage::disk('local')->delete('scanner/status.json');
+        Storage::disk('local')->delete($statusFile);
 
         return response()->json(['ok' => true]);
     }
+
 
     public function downloadInstaller()
     {
@@ -303,7 +329,6 @@ class ScannerController extends Controller
             if (!file_exists($savedPath) || filesize($savedPath) === 0) {
                 throw new \RuntimeException('El archivo quedó vacío o no se pudo guardar');
             }
-
         } catch (\Throwable $e) {
             Log::error('Error guardando PDF: ' . $e->getMessage());
             Storage::disk('local')->put('scanner/status.json', json_encode([
