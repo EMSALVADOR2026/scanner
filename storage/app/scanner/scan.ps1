@@ -1,5 +1,5 @@
 param (
-    [string]$ServerUrl = "http://localhost:8000",
+    [string]$ServerUrl = "https://scanner-3-nuyr.onrender.com/",
     [string]$Token     = "P3uGVs0EIomc9Pn40yuGjMJL4KPUd9ZIaKolxak80OBJ24f30AgI4P5LBMCQxAjT"
 )
 
