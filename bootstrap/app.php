@@ -10,8 +10,13 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware): void {
-        //
+    ->withMiddleware(function (Middleware $middleware) {
+        $middleware->validateCsrfTokens(except: [
+            'scanner/agent-ping',
+            'scanner/receive',
+            'scanner/update-status',
+            'scanner/pending',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

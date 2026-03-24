@@ -4,3 +4,4 @@
 !.gitignore
 !scanner/
 !scanner/scan.ps1
+!scanner/ScannerAgente.zip
