@@ -112,7 +112,6 @@ class ScannerController extends Controller
         ]);
     }
 
-    // Descarga el PDF al navegador
     public function download(Request $request)
     {
         $scanId     = $request->query('scan_id');
@@ -122,7 +121,6 @@ class ScannerController extends Controller
             return response()->json(['error' => 'scan_id requerido'], 400);
         }
 
-        // Lee el status.json para obtener el filename real
         if (!Storage::disk('local')->exists($statusFile)) {
             return response()->json(['error' => 'No hay escaneo activo'], 404);
         }
@@ -139,24 +137,25 @@ class ScannerController extends Controller
             return response()->json(['error' => 'Filename no disponible'], 404);
         }
 
-        $fullPath = storage_path(
-            'app' . DIRECTORY_SEPARATOR . 'scanner' .
-                DIRECTORY_SEPARATOR . 'incoming' .
-                DIRECTORY_SEPARATOR . basename($filename)
-        );
+        $safeName = basename($filename);
 
-        Log::info('Descargando: ' . $fullPath);
+        // Busca en incoming primero, luego en processed como fallback
+        $incomingPath  = 'scanner/incoming/'  . $safeName;
+        $processedPath = 'scanner/processed/' . $safeName;
 
-        if (!file_exists($fullPath)) {
-            Log::error('Archivo no encontrado: ' . $fullPath);
-            return response()->json([
-                'error' => 'Archivo no encontrado: ' . $filename
-            ], 404);
+        if (Storage::disk('local')->exists($incomingPath)) {
+            $fullPath = Storage::disk('local')->path($incomingPath);
+        } elseif (Storage::disk('local')->exists($processedPath)) {
+            $fullPath = Storage::disk('local')->path($processedPath);
+        } else {
+            Log::error('Archivo no encontrado en incoming ni processed: ' . $safeName);
+            Log::error('Ruta buscada: ' . Storage::disk('local')->path($incomingPath));
+            return response()->json(['error' => 'Archivo no encontrado: ' . $safeName], 404);
         }
 
         return response()->file($fullPath, [
             'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            'Content-Disposition' => 'inline; filename="' . $safeName . '"',
         ]);
     }
     // Confirma que el PDF fue tomado por el navegador

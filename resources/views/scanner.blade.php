@@ -517,23 +517,23 @@
 
     <script>
         // ── Referencias DOM ───────────────────────────────────────────────────
-        const CSRF      = document.querySelector('meta[name="csrf-token"]').content;
-        const scanBtn   = document.getElementById('btn-scan');
+        const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+        const scanBtn = document.getElementById('btn-scan');
         const statusMsg = document.getElementById('status-msg');
         const scannerBox = document.getElementById('scanner-box');
         const filePreview = document.getElementById('file-preview');
-        const fileNameEl  = document.getElementById('file-name');
-        const fileSizeEl  = document.getElementById('file-size');
-        const inputEl     = document.getElementById('pdfInput');
-        const submitBtn   = document.getElementById('btn-submit');
+        const fileNameEl = document.getElementById('file-name');
+        const fileSizeEl = document.getElementById('file-size');
+        const inputEl = document.getElementById('pdfInput');
+        const submitBtn = document.getElementById('btn-submit');
 
-        let currentBlobUrl   = null;
-        let pollingInterval  = null;
-        let currentScanId    = null;
-        let pollCount        = 0;
+        let currentBlobUrl = null;
+        let pollingInterval = null;
+        let currentScanId = null;
+        let pollCount = 0;
 
         // FIX #1: Timeout absoluto independiente del estado (evita polling infinito)
-        const POLL_MAX_IDLE     = 45;  // 90s sin actividad → error
+        const POLL_MAX_IDLE = 45;  // 90s sin actividad → error
         const POLL_MAX_ABSOLUTE = 150; // 300s tope absoluto → error
 
         // ── Inicia el escaneo ─────────────────────────────────────────────────
@@ -624,7 +624,8 @@
                             return;
                         }
                         setStatus('scanning', 'Descargando PDF...');
-                        await loadFile(data.filename);
+                        await loadFile(currentScanId);
+
                         break;
 
                     case 'error':
@@ -651,39 +652,17 @@
             }
         }
 
-        // ── Descarga el PDF y lo inyecta en el input ──────────────────────────
-        async function loadFile(filename) {
-            let blob = null;
-
+        async function loadFile(scanId) {
             try {
-                const res = await fetch(
-                    `/scanner/download?filename=${encodeURIComponent(filename)}`,
-                    { signal: AbortSignal.timeout(30000) }
-                );
+                const res = await fetch(`/scanner/download?scan_id=${encodeURIComponent(scanId)}`);
 
-                // FIX #10: Manejo detallado del error de descarga
                 if (!res.ok) {
-                    let errMsg = `Error HTTP ${res.status}`;
-                    try {
-                        const errData = await res.json();
-                        errMsg = errData.error || errMsg;
-                    } catch {}
-                    throw new Error(errMsg);
+                    const err = await res.json();
+                    throw new Error(err.error || 'No se pudo descargar el PDF');
                 }
 
-                // FIX #11: Verifica que la respuesta es realmente un PDF
-                const contentType = res.headers.get('content-type') || '';
-                if (!contentType.includes('pdf')) {
-                    throw new Error(`Tipo de archivo inesperado: ${contentType}`);
-                }
-
-                blob = await res.blob();
-
-                // FIX #12: Verifica que el blob tiene contenido
-                if (blob.size === 0) {
-                    throw new Error('El PDF descargado está vacío');
-                }
-
+                const blob = await res.blob();
+                const filename = 'documento.pdf';
                 const file = new File([blob], filename, { type: 'application/pdf' });
                 const dataTransfer = new DataTransfer();
                 dataTransfer.items.add(file);
@@ -702,20 +681,16 @@
                 scannerBox.className = 'ready';
                 submitBtn.disabled = false;
 
-                setStatus('ready', '✓ Documento listo para enviar');
+                setStatus('ready', 'Documento listo para enviar');
                 showToast('PDF cargado correctamente', 'success');
+
+                await confirmFile(scanId);
 
             } catch (err) {
                 setError('No se pudo cargar el PDF: ' + err.message);
-                return; // No llama a confirmFile si falló la descarga
             }
-
-            // FIX #13: confirmFile solo se llama si la descarga fue exitosa
-            await confirmFile(filename);
         }
-
-        // ── Confirma al servidor que el PDF fue tomado ────────────────────────
-        async function confirmFile(filename) {
+        async function confirmFile(scanId) {
             try {
                 await fetch('/scanner/confirm', {
                     method: 'POST',
@@ -723,11 +698,9 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': CSRF,
                     },
-                    body: JSON.stringify({ filename }),
+                    body: JSON.stringify({ scan_id: scanId }),
                 });
-            } catch {
-                // Fallo silencioso — no crítico, el archivo sigue disponible
-            }
+            } catch { }
         }
 
         // ── Visor de PDF ──────────────────────────────────────────────────────
@@ -784,7 +757,7 @@
 
         // ── Estado del agente ─────────────────────────────────────────────────
         async function checkAgentStatus() {
-            const dot  = document.getElementById('agent-dot');
+            const dot = document.getElementById('agent-dot');
             const text = document.getElementById('agent-status-text');
 
             try {
@@ -801,10 +774,10 @@
                 const data = await res.json();
 
                 if (data.online) {
-                    dot.style.background    = '#22c55e';
-                    text.style.color        = '#16a34a';
-                    text.style.fontWeight   = '600';
-                    text.textContent        = 'Agente activo ✓';
+                    dot.style.background = '#22c55e';
+                    text.style.color = '#16a34a';
+                    text.style.fontWeight = '600';
+                    text.textContent = 'Agente activo ✓';
                 } else {
                     setAgentInactive(dot, text);
                 }
@@ -818,17 +791,17 @@
         }
 
         function setAgentInactive(dot, text) {
-            dot.style.background  = '#f59e0b';
-            text.style.color      = '#92400e';
+            dot.style.background = '#f59e0b';
+            text.style.color = '#92400e';
             text.style.fontWeight = 'normal';
-            text.textContent      = 'Agente no detectado';
+            text.textContent = 'Agente no detectado';
         }
 
         function setAgentUnknown(dot, text) {
-            dot.style.background  = '#e2e8f0';
-            text.style.color      = '#94a3b8';
+            dot.style.background = '#e2e8f0';
+            text.style.color = '#94a3b8';
             text.style.fontWeight = 'normal';
-            text.textContent      = 'Sin conexión';
+            text.textContent = 'Sin conexión';
         }
 
         function showDownloadInstructions() {
@@ -860,7 +833,7 @@
         }
 
         function formatBytes(bytes) {
-            if (bytes < 1024)    return bytes + ' B';
+            if (bytes < 1024) return bytes + ' B';
             if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
             return (bytes / 1048576).toFixed(1) + ' MB';
         }
