@@ -44,7 +44,6 @@
             margin-bottom: 28px;
         }
 
-        /* ── Sección del agente ── */
         .agent-section {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -132,7 +131,6 @@
             line-height: 1.8;
         }
 
-        /* ── Scanner box ── */
         #scanner-box {
             border: 2px dashed #cbd5e1;
             border-radius: 12px;
@@ -215,9 +213,9 @@
             align-items: center;
             justify-content: center;
             gap: 6px;
+            text-align: center;
         }
 
-        /* ── Preview archivo ── */
         #file-preview {
             display: none;
             align-items: center;
@@ -277,19 +275,16 @@
             color: #ef4444;
         }
 
-        /* ── Input file oculto ── */
         #pdfInput {
             display: none;
         }
 
-        /* ── Divisor ── */
         .divider {
             height: 1px;
             background: #f1f5f9;
             margin: 20px 0;
         }
 
-        /* ── Botón enviar ── */
         #btn-submit {
             width: 100%;
             padding: 14px;
@@ -315,7 +310,6 @@
             transform: none;
         }
 
-        /* ── Visor PDF ── */
         #pdf-viewer-container {
             display: none;
             margin-top: 24px;
@@ -375,7 +369,6 @@
             display: block;
         }
 
-        /* ── Spinner ── */
         .spinner {
             display: inline-block;
             width: 14px;
@@ -394,7 +387,6 @@
             }
         }
 
-        /* ── Toast ── */
         #toast {
             position: fixed;
             bottom: 24px;
@@ -434,14 +426,13 @@
 
     <div class="card">
         <h1>Escáner de documentos</h1>
-        <p class="subtitle">Escanea tu documento y envíalo automáticamente</p>
+        <p class="subtitle">Genera el PDF con Epson y envíalo automáticamente</p>
 
         <div class="agent-section">
             <div class="agent-header">
-                <span class="agent-icon"></span>
                 <div class="agent-info">
                     <p>Agente del escáner</p>
-                    <p>Instálalo una sola vez en tu PC para poder escanear</p>
+                    <p>Instálalo una sola vez en tu PC para detectar y subir el PDF generado por Epson</p>
                 </div>
                 <div class="agent-indicator">
                     <span id="agent-dot"></span>
@@ -458,7 +449,8 @@
                 1. Extrae el ZIP en cualquier carpeta de tu PC<br>
                 2. Haz doble clic en <strong>instalar.bat</strong><br>
                 3. Espera a que diga <em>"Agente instalado correctamente"</em><br>
-                4. ¡Listo! El indicador de arriba se pondrá en verde<br><br>
+                4. Configura Epson / Document Capture Pro para guardar el PDF en <strong>Documentos</strong><br>
+                5. ¡Listo! El indicador de arriba se pondrá en verde<br><br>
                 <span style="color:#64748b; font-size:12px;">
                     Solo necesitas hacer esto una vez. El agente se iniciará
                     automáticamente cada vez que enciendas tu PC.
@@ -477,7 +469,7 @@
                 </button>
 
                 <div id="status-msg">
-                    Coloca el documento en el escáner y presiona el botón
+                    Presiona "Escanear documento" y luego usa el botón del Epson
                 </div>
 
                 <div id="file-preview">
@@ -516,7 +508,6 @@
     <div id="toast"></div>
 
     <script>
-        // ── Referencias DOM ───────────────────────────────────────────────────
         const CSRF = document.querySelector('meta[name="csrf-token"]').content;
         const scanBtn = document.getElementById('btn-scan');
         const statusMsg = document.getElementById('status-msg');
@@ -532,16 +523,15 @@
         let currentScanId = null;
         let pollCount = 0;
 
-        // FIX #1: Timeout absoluto independiente del estado (evita polling infinito)
-        const POLL_MAX_IDLE = 45;  // 90s sin actividad → error
-        const POLL_MAX_ABSOLUTE = 150; // 300s tope absoluto → error
+        const POLL_MAX_IDLE = 45;
+        const POLL_MAX_ABSOLUTE = 150;
 
-        // ── Inicia el escaneo ─────────────────────────────────────────────────
         async function startScan() {
             setBusy(true);
             scannerBox.className = 'active';
-            setStatus('scanning', 'Enviando solicitud al escáner...');
+            setStatus('scanning', 'Enviando solicitud...');
             pollCount = 0;
+            window._pollErrors = 0;
 
             try {
                 const res = await fetch('/scanner/scan', {
@@ -552,7 +542,6 @@
                     },
                 });
 
-                // FIX #2: Manejo explícito de respuestas no-OK del servidor
                 if (!res.ok) {
                     const errData = await res.json().catch(() => ({}));
                     throw new Error(errData.message || `Error del servidor (${res.status})`);
@@ -560,11 +549,12 @@
 
                 const data = await res.json();
 
-                if (!data.success) throw new Error(data.message || 'Error al iniciar');
+                if (!data.success) {
+                    throw new Error(data.message || 'Error al iniciar');
+                }
 
                 currentScanId = data.scan_id;
-                setStatus('scanning', 'Esperando al escáner...');
-
+                setStatus('scanning', 'Solicitud enviada. Ahora usa el botón del Epson o ejecuta el Job de Document Capture Pro...');
                 pollingInterval = setInterval(pollStatus, 2000);
 
             } catch (err) {
@@ -572,12 +562,10 @@
             }
         }
 
-        // ── Polling ───────────────────────────────────────────────────────────
         async function pollStatus() {
             try {
                 pollCount++;
 
-                // FIX #3: Timeout absoluto para evitar polling eterno
                 if (pollCount > POLL_MAX_ABSOLUTE) {
                     clearInterval(pollingInterval);
                     setError('Tiempo máximo de espera agotado. Intenta de nuevo.');
@@ -589,43 +577,39 @@
                     { signal: AbortSignal.timeout(5000) }
                 );
 
-                // FIX #4: Manejo de respuestas HTTP no-OK en el polling
                 if (!res.ok) {
                     throw new Error(`Error del servidor (${res.status})`);
                 }
 
                 const data = await res.json();
+                window._pollErrors = 0;
 
                 switch (data.status) {
-
                     case 'pending':
-                        // FIX #5: Timeout de idle separado del absoluto
                         if (pollCount > POLL_MAX_IDLE) {
                             clearInterval(pollingInterval);
-                            setError('El escáner no respondió. ¿Está activo el agente?');
+                            setError('El agente no respondió o Epson no generó el PDF a tiempo.');
                         } else {
-                            setStatus('scanning', `Esperando al agente... (${pollCount * 2}s)`);
+                            setStatus('scanning', `Esperando el PDF generado por Epson... (${pollCount * 2}s)`);
                         }
                         break;
 
                     case 'scanning':
-                        setStatus('scanning', 'Escaneando hojas del documento...');
-                        // FIX #6: Resetea solo el contador de idle, no el absoluto
+                        setStatus('scanning', 'Escanea ahora en el Epson o ejecuta el Job de Document Capture Pro...');
                         pollCount = Math.min(pollCount, POLL_MAX_IDLE - 1);
                         break;
 
-                    // FIX #7: 'completed' y 'ready' van al mismo handler
                     case 'completed':
                     case 'ready':
                         clearInterval(pollingInterval);
-                        // FIX #8: Valida que el servidor retornó un filename
+
                         if (!data.filename) {
                             setError('El servidor no devolvió el nombre del archivo.');
                             return;
                         }
+
                         setStatus('scanning', 'Descargando PDF...');
                         await loadFile(currentScanId);
-
                         break;
 
                     case 'error':
@@ -634,13 +618,10 @@
                         break;
 
                     default:
-                        // Status desconocido — ignorar silenciosamente
                         break;
                 }
 
             } catch (err) {
-                // FIX #9: Un error de red no detiene el polling inmediatamente
-                // Solo detiene si es un error persistente (3 fallos seguidos)
                 if (!window._pollErrors) window._pollErrors = 0;
                 window._pollErrors++;
 
@@ -657,7 +638,7 @@
                 const res = await fetch(`/scanner/download?scan_id=${encodeURIComponent(scanId)}`);
 
                 if (!res.ok) {
-                    const err = await res.json();
+                    const err = await res.json().catch(() => ({}));
                     throw new Error(err.error || 'No se pudo descargar el PDF');
                 }
 
@@ -690,6 +671,7 @@
                 setError('No se pudo cargar el PDF: ' + err.message);
             }
         }
+
         async function confirmFile(scanId) {
             try {
                 await fetch('/scanner/confirm', {
@@ -700,10 +682,9 @@
                     },
                     body: JSON.stringify({ scan_id: scanId }),
                 });
-            } catch { }
+            } catch {}
         }
 
-        // ── Visor de PDF ──────────────────────────────────────────────────────
         function showPdfViewer(blobUrl) {
             const viewer = document.getElementById('pdf-viewer-container');
             const iframe = document.getElementById('pdf-iframe');
@@ -731,12 +712,12 @@
             a.click();
         }
 
-        // ── Limpia el archivo ─────────────────────────────────────────────────
         function clearFile() {
             if (pollingInterval) {
                 clearInterval(pollingInterval);
                 pollingInterval = null;
             }
+
             window._pollErrors = 0;
             inputEl.value = '';
             filePreview.style.display = 'none';
@@ -751,11 +732,10 @@
 
             currentScanId = null;
             pollCount = 0;
-            setStatus('idle', 'Coloca el documento en el escáner y presiona el botón');
+            setStatus('idle', 'Presiona "Escanear documento" y luego usa el botón del Epson');
             setBusy(false);
         }
 
-        // ── Estado del agente ─────────────────────────────────────────────────
         async function checkAgentStatus() {
             const dot = document.getElementById('agent-dot');
             const text = document.getElementById('agent-status-text');
@@ -765,7 +745,6 @@
                     signal: AbortSignal.timeout(4000)
                 });
 
-                // FIX #14: Verifica HTTP status antes de parsear JSON
                 if (!res.ok) {
                     setAgentUnknown(dot, text);
                     return;
@@ -785,8 +764,6 @@
                 setAgentUnknown(dot, text);
             }
 
-            // FIX #15: Usa setTimeout en vez de encadenado para evitar
-            // múltiples timers si la función se llama varias veces
             setTimeout(checkAgentStatus, 10000);
         }
 
@@ -810,11 +787,10 @@
             }, 500);
         }
 
-        // ── Helpers ───────────────────────────────────────────────────────────
         function setBusy(busy) {
             scanBtn.disabled = busy;
             scanBtn.innerHTML = busy
-                ? '<span class="spinner"></span> Escaneando...'
+                ? '<span class="spinner"></span> Esperando PDF...'
                 : 'Escanear documento';
         }
 

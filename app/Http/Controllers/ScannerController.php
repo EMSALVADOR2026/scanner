@@ -9,29 +9,22 @@ use Illuminate\Support\Str;
 
 class ScannerController extends Controller
 {
-    // ── Helper de rutas ───────────────────────────────────────────────────────
     private function scannerPath(string $append = ''): string
     {
         $base = storage_path('app' . DIRECTORY_SEPARATOR . 'scanner');
         return $append ? $base . DIRECTORY_SEPARATOR . $append : $base;
     }
 
-    // ── Valida que la petición viene del agente ───────────────────────────────
     private function validateToken(Request $request): bool
     {
         return $request->header('X-Scanner-Token') === config('scanner.token');
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // RUTAS DEL NAVEGADOR
-    // ─────────────────────────────────────────────────────────────────────────
 
     public function index()
     {
         return view('scanner');
     }
 
-    // Usuario presiona "Escanear" — responde INMEDIATAMENTE
     public function scan(Request $request)
     {
         Storage::disk('local')->makeDirectory('scanner/incoming');
@@ -39,7 +32,6 @@ class ScannerController extends Controller
 
         $lockFile = $this->scannerPath('scanner.lock');
 
-        // FIX #1: Duración del lock alineada con el timeout del polling en JS (90s)
         if (file_exists($lockFile) && time() - filemtime($lockFile) < 90) {
             return response()->json([
                 'success' => false,
@@ -70,7 +62,6 @@ class ScannerController extends Controller
         ]);
     }
 
-    // El JS pregunta el estado cada 2 segundos
     public function poll(Request $request)
     {
         $scanId     = $request->query('scan_id');
@@ -93,13 +84,11 @@ class ScannerController extends Controller
 
         $status = $data['status'] ?? 'pending';
 
-        // FIX #2: 'completed' se trata igual que 'ready' para el frontend
-        // Además se limpia el lock en ambos casos
         if (in_array($status, ['ready', 'completed', 'error'])) {
             if (file_exists($lockFile)) {
                 unlink($lockFile);
             }
-            // Normaliza 'completed' → 'ready' para que el JS siempre entre al mismo case
+
             if ($status === 'completed') {
                 $status = 'ready';
             }
@@ -108,7 +97,7 @@ class ScannerController extends Controller
         return response()->json([
             'status'   => $status,
             'filename' => $data['filename'] ?? null,
-            'message'  => $data['message']  ?? null,
+            'message'  => $data['message'] ?? null,
         ]);
     }
 
@@ -139,8 +128,7 @@ class ScannerController extends Controller
 
         $safeName = basename($filename);
 
-        // Busca en incoming primero, luego en processed como fallback
-        $incomingPath  = 'scanner/incoming/'  . $safeName;
+        $incomingPath  = 'scanner/incoming/' . $safeName;
         $processedPath = 'scanner/processed/' . $safeName;
 
         if (Storage::disk('local')->exists($incomingPath)) {
@@ -149,7 +137,6 @@ class ScannerController extends Controller
             $fullPath = Storage::disk('local')->path($processedPath);
         } else {
             Log::error('Archivo no encontrado en incoming ni processed: ' . $safeName);
-            Log::error('Ruta buscada: ' . Storage::disk('local')->path($incomingPath));
             return response()->json(['error' => 'Archivo no encontrado: ' . $safeName], 404);
         }
 
@@ -158,7 +145,7 @@ class ScannerController extends Controller
             'Content-Disposition' => 'inline; filename="' . $safeName . '"',
         ]);
     }
-    // Confirma que el PDF fue tomado por el navegador
+
     public function confirm(Request $request)
     {
         $scanId     = $request->input('scan_id');
@@ -168,16 +155,14 @@ class ScannerController extends Controller
             return response()->json(['ok' => false, 'error' => 'scan_id requerido'], 400);
         }
 
-        // Obtiene el filename desde status.json
         $filename = null;
         if (Storage::disk('local')->exists($statusFile)) {
             $data     = json_decode(Storage::disk('local')->get($statusFile), true);
             $filename = $data['filename'] ?? null;
         }
 
-        // Mueve el archivo a processed
         if ($filename) {
-            $from = 'scanner/incoming/'  . basename($filename);
+            $from = 'scanner/incoming/' . basename($filename);
             $to   = 'scanner/processed/' . basename($filename);
 
             if (Storage::disk('local')->exists($from)) {
@@ -185,71 +170,81 @@ class ScannerController extends Controller
             }
         }
 
-        // Limpia el lock y el status
         $lockFile = $this->scannerPath('scanner.lock');
-        if (file_exists($lockFile)) unlink($lockFile);
+        if (file_exists($lockFile)) {
+            unlink($lockFile);
+        }
 
         Storage::disk('local')->delete($statusFile);
 
         return response()->json(['ok' => true]);
     }
 
-
     public function downloadInstaller()
     {
         $serverUrl = config('app.url');
         $token     = config('scanner.token');
-        $zipPath   = storage_path('app/scanner/ScannerAgente.zip');
-        $ps1Path   = storage_path('app/scanner/scan.ps1');
+
+        $zipDir  = storage_path('app/scanner');
+        $zipPath = $zipDir . DIRECTORY_SEPARATOR . 'ScannerAgente.zip';
+        $ps1Path = $zipDir . DIRECTORY_SEPARATOR . 'scan.ps1';
 
         if (!file_exists($ps1Path)) {
             return response()->json(['error' => 'scan.ps1 no encontrado'], 404);
         }
 
-        $batContent = "@echo off\r\n" .
-            "title Instalador del Agente Escaner\r\n" .
+        if (!is_dir($zipDir)) {
+            mkdir($zipDir, 0777, true);
+        }
+
+        $serverUrlEsc = str_replace('"', '""', $serverUrl);
+        $tokenEsc     = str_replace('"', '""', $token);
+
+        $batContent =
+            "@echo off\r\n" .
+            "title Instalador del Agente Escaner Epson\r\n" .
             "echo ================================================\r\n" .
-            "echo   Instalando agente del escaner...\r\n" .
+            "echo   Instalando agente del escaner Epson...\r\n" .
             "echo ================================================\r\n" .
             "echo.\r\n" .
             "set SCRIPT_DIR=%~dp0\r\n" .
             "set STARTUP_DIR=%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\r\n" .
-            "\r\n" .
             "set INSTALL_DIR=%USERPROFILE%\\ScannerAgente\r\n" .
-            "if not exist \"%INSTALL_DIR%\" mkdir \"%INSTALL_DIR%\"\r\n" .
-            "copy \"%SCRIPT_DIR%scan.ps1\" \"%INSTALL_DIR%\\scan.ps1\" /Y\r\n" .
-            "\r\n" .
-            "(\r\n" .
-            "echo Dim Shell\r\n" .
-            "echo Set Shell = CreateObject^(\"WScript.Shell\"^)\r\n" .
-            "echo Shell.Run \"powershell -WindowStyle Hidden -ExecutionPolicy Bypass -File \"\"%INSTALL_DIR%\\scan.ps1\"\" -ServerUrl \"\"{$serverUrl}\"\" -Token \"\"{$token}\"\"\", 0, False\r\n" .
-            "echo Set Shell = Nothing\r\n" .
-            ") > \"%STARTUP_DIR%\\ScannerAgente.vbs\"\r\n" .
-            "\r\n" .
-            "start \"\" wscript.exe \"%STARTUP_DIR%\\ScannerAgente.vbs\"\r\n" .
-            "\r\n" .
+            "set WATCH_FOLDER=%USERPROFILE%\\Documents\r\n" .
+            "set ARCHIVE_FOLDER=C:\\ScannerAgente\\processed\r\n" .
             "echo.\r\n" .
-            "echo [OK] Agente instalado en: %INSTALL_DIR%\r\n" .
+            "if not exist \"%INSTALL_DIR%\" mkdir \"%INSTALL_DIR%\"\r\n" .
+            "if not exist \"%WATCH_FOLDER%\" mkdir \"%WATCH_FOLDER%\"\r\n" .
+            "if not exist \"%ARCHIVE_FOLDER%\" mkdir \"%ARCHIVE_FOLDER%\"\r\n" .
+            "copy \"%SCRIPT_DIR%scan.ps1\" \"%INSTALL_DIR%\\scan.ps1\" /Y\r\n" .
+            "echo Dim Shell > \"%INSTALL_DIR%\\ScannerAgente.vbs\"\r\n" .
+            "echo Set Shell = CreateObject(\"WScript.Shell\") >> \"%INSTALL_DIR%\\ScannerAgente.vbs\"\r\n" .
+            "echo Shell.Run \"powershell -WindowStyle Hidden -ExecutionPolicy Bypass -File \"\"%INSTALL_DIR%\\scan.ps1\"\" -ServerUrl \"\"{$serverUrlEsc}\"\" -Token \"\"{$tokenEsc}\"\" -WatchFolder \"\"%WATCH_FOLDER%\"\" -ArchiveFolder \"\"%ARCHIVE_FOLDER%\"\" -WaitSeconds 60\", 0, False >> \"%INSTALL_DIR%\\ScannerAgente.vbs\"\r\n" .
+            "echo Set Shell = Nothing >> \"%INSTALL_DIR%\\ScannerAgente.vbs\"\r\n" .
+            "copy \"%INSTALL_DIR%\\ScannerAgente.vbs\" \"%STARTUP_DIR%\\ScannerAgente.vbs\" /Y\r\n" .
+            "start \"\" wscript.exe \"%STARTUP_DIR%\\ScannerAgente.vbs\"\r\n" .
+            "echo.\r\n" .
+            "echo [OK] Agente instalado correctamente\r\n" .
+            "echo [OK] Carpeta de entrada: %WATCH_FOLDER%\r\n" .
+            "echo [OK] Carpeta procesados: %ARCHIVE_FOLDER%\r\n" .
             "echo [OK] Se iniciara automaticamente al encender la PC\r\n" .
-            "echo [OK] Corriendo en segundo plano ahora mismo\r\n" .
+            "echo [OK] El escaneo ahora lo controla Epson (Document Capture Pro)\r\n" .
             "echo.\r\n" .
             "pause\r\n";
 
         $zip = new \ZipArchive();
-        $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return response()->json(['error' => 'No se pudo crear el ZIP'], 500);
+        }
+
         $zip->addFromString('instalar.bat', $batContent);
         $zip->addFile($ps1Path, 'scan.ps1');
         $zip->close();
 
-        return response()->download($zipPath, 'ScannerAgente.zip')
-            ->deleteFileAfterSend(false);
+        return response()->download($zipPath, 'ScannerAgente.zip')->deleteFileAfterSend(false);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // RUTAS DEL AGENTE POWERSHELL
-    // ─────────────────────────────────────────────────────────────────────────
-
-    // Agente pregunta si hay trabajo pendiente
     public function pending(Request $request)
     {
         if (!$this->validateToken($request)) {
@@ -285,7 +280,6 @@ class ScannerController extends Controller
         ]);
     }
 
-    // Agente sube el PDF escaneado
     public function receive(Request $request)
     {
         if (!$this->validateToken($request)) {
@@ -299,7 +293,6 @@ class ScannerController extends Controller
 
         $scanId = $request->input('scan_id');
 
-        // FIX #5: Verifica que el scan_id coincide con el trabajo activo
         $statusFile = 'scanner/status.json';
         if (Storage::disk('local')->exists($statusFile)) {
             $current = json_decode(Storage::disk('local')->get($statusFile), true);
@@ -310,14 +303,12 @@ class ScannerController extends Controller
             }
         }
 
-        // FIX #6: Nombre del archivo vinculado al scan_id para evitar colisiones
         $safeId   = preg_replace('/[^a-zA-Z0-9\-]/', '', $scanId);
         $filename = 'scan_' . $safeId . '.pdf';
         $path     = 'scanner/incoming/' . $filename;
 
         Storage::disk('local')->makeDirectory('scanner/incoming');
 
-        // FIX #7: Verifica que el archivo se guardó correctamente antes de marcar ready
         try {
             Storage::disk('local')->put(
                 $path,
@@ -340,7 +331,6 @@ class ScannerController extends Controller
             return response()->json(['error' => 'No se pudo guardar el archivo'], 500);
         }
 
-        // Actualiza estado a ready con el filename correcto
         Storage::disk('local')->put('scanner/status.json', json_encode([
             'scan_id'  => $scanId,
             'status'   => 'ready',
@@ -354,7 +344,6 @@ class ScannerController extends Controller
         return response()->json(['success' => true]);
     }
 
-    // Agente actualiza el estado
     public function updateStatus(Request $request)
     {
         if (!$this->validateToken($request)) {
@@ -370,8 +359,6 @@ class ScannerController extends Controller
             $current['message'] = $request->input('message', '');
             $current['updated'] = now()->timestamp;
 
-            // FIX #8: Solo sobreescribe filename si viene explícitamente en el request
-            // Evita que un update de estado borre el filename que puso receive()
             if ($request->has('filename')) {
                 $current['filename'] = $request->input('filename');
             }
@@ -382,7 +369,6 @@ class ScannerController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    // Agente avisa que está vivo
     public function agentPing(Request $request)
     {
         if (!$this->validateToken($request)) {
