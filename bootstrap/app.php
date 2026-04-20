@@ -11,13 +11,17 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        /*
+         * Excluye las rutas del agente PowerShell de la verificación CSRF.
+         * El agente no tiene sesión de navegador — se autentica con X-Scanner-Token.
+         * Estas rutas siguen protegidas: solo responden si el token es válido.
+         */
         $middleware->validateCsrfTokens(except: [
-            'scanner/agent-ping',
             'scanner/receive',
             'scanner/update-status',
-            'scanner/pending',
+            'scanner/agent-ping',
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions): void {
+    ->withExceptions(function (Exceptions $exceptions) {
         //
     })->create();
