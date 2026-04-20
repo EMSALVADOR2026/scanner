@@ -202,34 +202,31 @@ class ScannerController extends Controller
 
         $batContent =
             "@echo off\r\n" .
-            "title Instalador del Agente Escaner Epson\r\n" .
-            "echo ================================================\r\n" .
-            "echo   Instalando agente del escaner Epson...\r\n" .
-            "echo ================================================\r\n" .
-            "echo.\r\n" .
-            "set SCRIPT_DIR=%~dp0\r\n" .
-            "set STARTUP_DIR=%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\r\n" .
             "set INSTALL_DIR=%USERPROFILE%\\ScannerAgente\r\n" .
-            "set WATCH_FOLDER=%USERPROFILE%\\Documents\r\n" .
-            "set ARCHIVE_FOLDER=C:\\ScannerAgente\\processed\r\n" .
-            "echo.\r\n" .
+            "set STARTUP_DIR=%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\r\n" .
             "if not exist \"%INSTALL_DIR%\" mkdir \"%INSTALL_DIR%\"\r\n" .
-            "if not exist \"%WATCH_FOLDER%\" mkdir \"%WATCH_FOLDER%\"\r\n" .
-            "if not exist \"%ARCHIVE_FOLDER%\" mkdir \"%ARCHIVE_FOLDER%\"\r\n" .
-            "copy \"%SCRIPT_DIR%scan.ps1\" \"%INSTALL_DIR%\\scan.ps1\" /Y\r\n" .
-            "echo Dim Shell > \"%INSTALL_DIR%\\ScannerAgente.vbs\"\r\n" .
-            "echo Set Shell = CreateObject(\"WScript.Shell\") >> \"%INSTALL_DIR%\\ScannerAgente.vbs\"\r\n" .
-            "echo Shell.Run \"powershell -WindowStyle Hidden -ExecutionPolicy Bypass -File \"\"%INSTALL_DIR%\\scan.ps1\"\" -ServerUrl \"\"{$serverUrlEsc}\"\" -Token \"\"{$tokenEsc}\"\" -WatchFolder \"\"%WATCH_FOLDER%\"\" -ArchiveFolder \"\"%ARCHIVE_FOLDER%\"\" -WaitSeconds 60\", 0, False >> \"%INSTALL_DIR%\\ScannerAgente.vbs\"\r\n" .
-            "echo Set Shell = Nothing >> \"%INSTALL_DIR%\\ScannerAgente.vbs\"\r\n" .
-            "copy \"%INSTALL_DIR%\\ScannerAgente.vbs\" \"%STARTUP_DIR%\\ScannerAgente.vbs\" /Y\r\n" .
+            "if not exist \"%INSTALL_DIR%\\processed\" mkdir \"%INSTALL_DIR%\\processed\"\r\n" .
+            "copy \"%~dp0scan.ps1\" \"%INSTALL_DIR%\\scan.ps1\" /Y\r\n" .
+            "\r\n" .
+            ":: Crea el .env con las credenciales\r\n" .
+            "(\r\n" .
+            "echo SCANNER_SERVER_URL={$serverUrl}\r\n" .
+            "echo SCANNER_TOKEN={$token}\r\n" .
+            "echo SCANNER_WATCH_FOLDER=%USERPROFILE%\\Documents\r\n" .
+            "echo SCANNER_ARCHIVE_FOLDER=%INSTALL_DIR%\\processed\r\n" .
+            "echo SCANNER_WAIT_SECONDS=60\r\n" .
+            ") > \"%INSTALL_DIR%\\.env\"\r\n" .
+            "\r\n" .
+            "(\r\n" .
+            "echo Dim Shell\r\n" .
+            "echo Set Shell = CreateObject^(\"WScript.Shell\"^)\r\n" .
+            "echo Shell.Run \"powershell -WindowStyle Hidden -ExecutionPolicy Bypass -File \"\"%INSTALL_DIR%\\scan.ps1\"\"\", 0, False\r\n" .
+            "echo Set Shell = Nothing\r\n" .
+            ") > \"%STARTUP_DIR%\\ScannerAgente.vbs\"\r\n" .
+            "\r\n" .
             "start \"\" wscript.exe \"%STARTUP_DIR%\\ScannerAgente.vbs\"\r\n" .
-            "echo.\r\n" .
-            "echo [OK] Agente instalado correctamente\r\n" .
-            "echo [OK] Carpeta de entrada: %WATCH_FOLDER%\r\n" .
-            "echo [OK] Carpeta procesados: %ARCHIVE_FOLDER%\r\n" .
-            "echo [OK] Se iniciara automaticamente al encender la PC\r\n" .
-            "echo [OK] El escaneo ahora lo controla Epson (Document Capture Pro)\r\n" .
-            "echo.\r\n" .
+            "echo [OK] Agente instalado\r\n" .
+            "echo [OK] Servidor: {$serverUrl}\r\n" .
             "pause\r\n";
 
         $zip = new \ZipArchive();

@@ -168,17 +168,9 @@
             transition: background .3s;
         }
 
-        #scanner-box.active .scanner-icon {
-            background: #dbeafe;
-        }
-
-        #scanner-box.ready .scanner-icon {
-            background: #dcfce7;
-        }
-
-        #scanner-box.error .scanner-icon {
-            background: #fee2e2;
-        }
+        #scanner-box.active .scanner-icon { background: #dbeafe; }
+        #scanner-box.ready  .scanner-icon { background: #dcfce7; }
+        #scanner-box.error  .scanner-icon { background: #fee2e2; }
 
         #btn-scan {
             padding: 12px 32px;
@@ -238,6 +230,7 @@
             font-weight: 600;
             display: block;
             margin-bottom: 2px;
+            word-break: break-all;
         }
 
         .file-size {
@@ -257,9 +250,7 @@
             transition: all .2s;
         }
 
-        #btn-preview-pdf:hover {
-            background: #dcfce7;
-        }
+        #btn-preview-pdf:hover { background: #dcfce7; }
 
         #btn-clear {
             background: none;
@@ -271,12 +262,57 @@
             transition: color .2s;
         }
 
-        #btn-clear:hover {
-            color: #ef4444;
+        #btn-clear:hover { color: #ef4444; }
+
+        #pdfInput {  }
+
+        /* ── Sección nombre del archivo ── */
+        #filename-section {
+            display: none;
+            margin-bottom: 20px;
         }
 
-        #pdfInput {
-            display: none;
+        #filename-section label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        .filename-input-wrapper {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        #filename-input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #1e293b;
+            outline: none;
+            transition: border-color .2s, box-shadow .2s;
+        }
+
+        #filename-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,.1);
+        }
+
+        .filename-ext {
+            font-size: 13px;
+            color: #94a3b8;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+
+        #filename-hint {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 4px;
         }
 
         .divider {
@@ -333,10 +369,7 @@
             color: #475569;
         }
 
-        .viewer-actions {
-            display: flex;
-            gap: 8px;
-        }
+        .viewer-actions { display: flex; gap: 8px; }
 
         .viewer-btn {
             padding: 5px 12px;
@@ -349,18 +382,14 @@
             transition: all .2s;
         }
 
-        .viewer-btn:hover {
-            background: #f1f5f9;
-        }
+        .viewer-btn:hover { background: #f1f5f9; }
 
         .viewer-btn.danger {
             color: #ef4444;
             border-color: #fecaca;
         }
 
-        .viewer-btn.danger:hover {
-            background: #fef2f2;
-        }
+        .viewer-btn.danger:hover { background: #fef2f2; }
 
         #pdf-iframe {
             width: 100%;
@@ -381,11 +410,7 @@
             flex-shrink: 0;
         }
 
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         #toast {
             position: fixed;
@@ -403,426 +428,478 @@
             z-index: 1000;
         }
 
-        #toast.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        #toast.success {
-            background: #22c55e;
-        }
-
-        #toast.error {
-            background: #ef4444;
-        }
-
-        #toast.info {
-            background: #3b82f6;
-        }
+        #toast.show    { opacity: 1; transform: translateY(0); }
+        #toast.success { background: #22c55e; }
+        #toast.error   { background: #ef4444; }
+        #toast.info    { background: #3b82f6; }
     </style>
 </head>
 
 <body>
 
-    <div class="card">
-        <h1>Escáner de documentos</h1>
-        <p class="subtitle">Genera el PDF con Epson y envíalo automáticamente</p>
+<div class="card">
+    <h1>Escáner de documentos</h1>
+    <p class="subtitle">Genera el PDF con Epson y envíalo automáticamente</p>
 
-        <div class="agent-section">
-            <div class="agent-header">
-                <div class="agent-info">
-                    <p>Agente del escáner</p>
-                    <p>Instálalo una sola vez en tu PC para detectar y subir el PDF generado por Epson</p>
-                </div>
-                <div class="agent-indicator">
-                    <span id="agent-dot"></span>
-                    <span id="agent-status-text">Verificando...</span>
-                </div>
+    <div class="agent-section">
+        <div class="agent-header">
+            <div class="agent-info">
+                <p>Agente del escáner</p>
+                <p>Instálalo una sola vez en tu PC para detectar y subir el PDF generado por Epson</p>
             </div>
-
-            <a href="/scanner/download-installer" class="btn-download" onclick="showDownloadInstructions()">
-                Descargar agente para Windows
-            </a>
-
-            <div id="download-instructions">
-                <strong>Archivo descargado: ScannerAgente.zip</strong><br><br>
-                1. Extrae el ZIP en cualquier carpeta de tu PC<br>
-                2. Haz doble clic en <strong>instalar.bat</strong><br>
-                3. Espera a que diga <em>"Agente instalado correctamente"</em><br>
-                4. Configura Epson / Document Capture Pro para guardar el PDF en <strong>Documentos</strong><br>
-                5. ¡Listo! El indicador de arriba se pondrá en verde<br><br>
-                <span style="color:#64748b; font-size:12px;">
-                    Solo necesitas hacer esto una vez. El agente se iniciará
-                    automáticamente cada vez que enciendas tu PC.
-                </span>
+            <div class="agent-indicator">
+                <span id="agent-dot"></span>
+                <span id="agent-status-text">Verificando...</span>
             </div>
         </div>
 
-        <form id="main-form" method="POST" action="/guardar" enctype="multipart/form-data">
-            @csrf
+        <a href="/scanner/download-installer" class="btn-download" onclick="showDownloadInstructions()">
+            Descargar agente para Windows
+        </a>
 
-            <div id="scanner-box">
-                <div class="scanner-icon">📄</div>
-
-                <button type="button" id="btn-scan" onclick="startScan()">
-                    Escanear documento
-                </button>
-
-                <div id="status-msg">
-                    Presiona "Escanear documento" y luego usa el botón del Epson
-                </div>
-
-                <div id="file-preview">
-                    <div class="file-info">
-                        <span class="file-name" id="file-name">documento.pdf</span>
-                        <span class="file-size" id="file-size"></span>
-                    </div>
-                    <button type="button" id="btn-preview-pdf" onclick="reopenViewer()">
-                        Ver PDF
-                    </button>
-                    <button type="button" id="btn-clear" onclick="clearFile()">✕</button>
-                </div>
-            </div>
-
-            <input type="file" id="pdfInput" name="documento" accept="application/pdf" />
-
-            <div class="divider"></div>
-
-            <button type="submit" id="btn-submit" disabled>
-                Enviar documento
-            </button>
-        </form>
-
-        <div id="pdf-viewer-container">
-            <div class="viewer-toolbar">
-                <span>Vista previa</span>
-                <div class="viewer-actions">
-                    <button class="viewer-btn" onclick="downloadPdf()">⬇ Descargar</button>
-                    <button class="viewer-btn danger" onclick="closePdfViewer()">✕ Cerrar</button>
-                </div>
-            </div>
-            <iframe id="pdf-iframe" src="" type="application/pdf"></iframe>
+        <div id="download-instructions">
+            <strong>Archivo descargado: ScannerAgente.zip</strong><br><br>
+            1. Extrae el ZIP en cualquier carpeta de tu PC<br>
+            2. Haz doble clic en <strong>instalar.bat</strong><br>
+            3. Espera a que diga <em>"Agente instalado correctamente"</em><br>
+            4. Configura Epson / Document Capture Pro para guardar el PDF en <strong>Documentos</strong><br>
+            5. ¡Listo! El indicador de arriba se pondrá en verde<br><br>
+            <span style="color:#64748b; font-size:12px;">
+                Solo necesitas hacer esto una vez. El agente se iniciará
+                automáticamente cada vez que enciendas tu PC.
+            </span>
         </div>
     </div>
 
-    <div id="toast"></div>
+    <form id="main-form" method="POST" action="/guardar" enctype="multipart/form-data">
+        @csrf
 
-    <script>
-        const CSRF = document.querySelector('meta[name="csrf-token"]').content;
-        const scanBtn = document.getElementById('btn-scan');
-        const statusMsg = document.getElementById('status-msg');
-        const scannerBox = document.getElementById('scanner-box');
-        const filePreview = document.getElementById('file-preview');
-        const fileNameEl = document.getElementById('file-name');
-        const fileSizeEl = document.getElementById('file-size');
-        const inputEl = document.getElementById('pdfInput');
-        const submitBtn = document.getElementById('btn-submit');
+        <div id="scanner-box">
+            <div class="scanner-icon">📄</div>
 
-        let currentBlobUrl = null;
-        let pollingInterval = null;
-        let currentScanId = null;
-        let pollCount = 0;
+            <button type="button" id="btn-scan" onclick="startScan()">
+                Escanear documento
+            </button>
 
-        const POLL_MAX_IDLE = 45;
-        const POLL_MAX_ABSOLUTE = 150;
+            <div id="status-msg">
+                Presiona "Escanear documento" y luego usa el botón del Epson
+            </div>
 
-        async function startScan() {
-            setBusy(true);
-            scannerBox.className = 'active';
-            setStatus('scanning', 'Enviando solicitud...');
-            pollCount = 0;
-            window._pollErrors = 0;
+            <div id="file-preview">
+                <div class="file-info">
+                    <span class="file-name" id="file-name">documento.pdf</span>
+                    <span class="file-size" id="file-size"></span>
+                </div>
+                <button type="button" id="btn-preview-pdf" onclick="reopenViewer()">
+                    Ver PDF
+                </button>
+                <button type="button" id="btn-clear" onclick="clearFile()">✕</button>
+            </div>
+        </div>
 
-            try {
-                const res = await fetch('/scanner/scan', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': CSRF,
-                        'Accept': 'application/json',
-                    },
-                });
+        <input type="file" id="pdfInput" name="documento" accept="application/pdf" />
 
-                if (!res.ok) {
-                    const errData = await res.json().catch(() => ({}));
-                    throw new Error(errData.message || `Error del servidor (${res.status})`);
-                }
+        <div id="filename-section">
+            <label for="filename-input">Nombre del documento</label>
+            <div class="filename-input-wrapper">
+                <input
+                    type="text"
+                    id="filename-input"
+                    name="document_name"
+                    placeholder="Ej: Contrato_empresa_2024"
+                    oninput="updateFilename()"
+                    maxlength="100"
+                    autocomplete="off"
+                />
+                <span class="filename-ext">.pdf</span>
+            </div>
+            <p id="filename-hint">Deja vacío para usar el nombre por defecto</p>
+        </div>
 
-                const data = await res.json();
+        <div class="divider"></div>
 
-                if (!data.success) {
-                    throw new Error(data.message || 'Error al iniciar');
-                }
+        <button type="submit" id="btn-submit" disabled>
+            Enviar documento
+        </button>
+    </form>
 
-                currentScanId = data.scan_id;
-                setStatus('scanning', 'Solicitud enviada. Ahora usa el botón del Epson o ejecuta el Job de Document Capture Pro...');
-                pollingInterval = setInterval(pollStatus, 2000);
+    <div id="pdf-viewer-container">
+        <div class="viewer-toolbar">
+            <span>Vista previa</span>
+            <div class="viewer-actions">
+                <button class="viewer-btn" onclick="downloadPdf()">⬇ Descargar</button>
+                <button class="viewer-btn danger" onclick="closePdfViewer()">✕ Cerrar</button>
+            </div>
+        </div>
+        <iframe id="pdf-iframe" src="" type="application/pdf"></iframe>
+    </div>
+</div>
 
-            } catch (err) {
-                setError(err.message);
-            }
+<div id="toast"></div>
+
+<script>
+// ── Referencias DOM ───────────────────────────────────────────────────────────
+const CSRF        = document.querySelector('meta[name="csrf-token"]').content;
+const scanBtn     = document.getElementById('btn-scan');
+const statusMsg   = document.getElementById('status-msg');
+const scannerBox  = document.getElementById('scanner-box');
+const filePreview = document.getElementById('file-preview');
+const fileNameEl  = document.getElementById('file-name');
+const fileSizeEl  = document.getElementById('file-size');
+const inputEl     = document.getElementById('pdfInput');
+const submitBtn   = document.getElementById('btn-submit');
+
+let currentBlobUrl = null;
+let pollingInterval = null;
+let currentScanId   = null;
+let pollCount       = 0;
+let currentBlob     = null; // guarda el blob para poder renombrarlo
+
+const POLL_MAX_IDLE     = 45;
+const POLL_MAX_ABSOLUTE = 150;
+
+// ── Nombre del archivo ────────────────────────────────────────────────────────
+function getFilename() {
+    const input = document.getElementById('filename-input');
+    const value = input ? input.value.trim() : '';
+
+    if (value === '') return 'documento.pdf';
+
+    const clean = value
+        .replace(/[<>:"/\\|?*]/g, '') // caracteres inválidos en Windows
+        .replace(/\s+/g, '_')          // espacios → guiones bajos
+        .replace(/\.pdf$/i, '')        // quita .pdf si el usuario lo escribió
+        .trim();
+
+    return clean ? clean + '.pdf' : 'documento.pdf';
+}
+
+function updateFilename() {
+    const filename = getFilename();
+    fileNameEl.textContent = filename;
+
+    // Si ya hay un blob cargado actualiza el input file con el nuevo nombre
+    if (currentBlob) {
+        assignFileToInput(currentBlob, filename);
+    }
+}
+
+function assignFileToInput(blob, filename) {
+    const file         = new File([blob], filename, { type: 'application/pdf' });
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    inputEl.files = dataTransfer.files;
+    inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+    fileNameEl.textContent = filename;
+}
+
+// ── Inicia el escaneo ─────────────────────────────────────────────────────────
+async function startScan() {
+    setBusy(true);
+    scannerBox.className = 'active';
+    setStatus('scanning', 'Enviando solicitud...');
+    pollCount = 0;
+    window._pollErrors = 0;
+
+    try {
+        const res = await fetch('/scanner/scan', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': CSRF,
+                'Accept':       'application/json',
+            },
+        });
+
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.message || `Error del servidor (${res.status})`);
         }
 
-        async function pollStatus() {
-            try {
-                pollCount++;
+        const data = await res.json();
 
-                if (pollCount > POLL_MAX_ABSOLUTE) {
+        if (!data.success) throw new Error(data.message || 'Error al iniciar');
+
+        currentScanId = data.scan_id;
+        setStatus('scanning', 'Solicitud enviada. Ahora usa el botón del Epson...');
+        pollingInterval = setInterval(pollStatus, 2000);
+
+    } catch (err) {
+        setError(err.message);
+    }
+}
+
+// ── Polling ───────────────────────────────────────────────────────────────────
+async function pollStatus() {
+    try {
+        pollCount++;
+
+        if (pollCount > POLL_MAX_ABSOLUTE) {
+            clearInterval(pollingInterval);
+            setError('Tiempo máximo de espera agotado. Intenta de nuevo.');
+            return;
+        }
+
+        const res = await fetch(
+            `/scanner/poll?scan_id=${encodeURIComponent(currentScanId)}`,
+            { signal: AbortSignal.timeout(5000) }
+        );
+
+        if (!res.ok) throw new Error(`Error del servidor (${res.status})`);
+
+        const data = await res.json();
+        window._pollErrors = 0;
+
+        switch (data.status) {
+            case 'pending':
+                if (pollCount > POLL_MAX_IDLE) {
                     clearInterval(pollingInterval);
-                    setError('Tiempo máximo de espera agotado. Intenta de nuevo.');
-                    return;
-                }
-
-                const res = await fetch(
-                    `/scanner/poll?scan_id=${encodeURIComponent(currentScanId)}`,
-                    { signal: AbortSignal.timeout(5000) }
-                );
-
-                if (!res.ok) {
-                    throw new Error(`Error del servidor (${res.status})`);
-                }
-
-                const data = await res.json();
-                window._pollErrors = 0;
-
-                switch (data.status) {
-                    case 'pending':
-                        if (pollCount > POLL_MAX_IDLE) {
-                            clearInterval(pollingInterval);
-                            setError('El agente no respondió o Epson no generó el PDF a tiempo.');
-                        } else {
-                            setStatus('scanning', `Esperando el PDF generado por Epson... (${pollCount * 2}s)`);
-                        }
-                        break;
-
-                    case 'scanning':
-                        setStatus('scanning', 'Escanea ahora en el Epson o ejecuta el Job de Document Capture Pro...');
-                        pollCount = Math.min(pollCount, POLL_MAX_IDLE - 1);
-                        break;
-
-                    case 'completed':
-                    case 'ready':
-                        clearInterval(pollingInterval);
-
-                        if (!data.filename) {
-                            setError('El servidor no devolvió el nombre del archivo.');
-                            return;
-                        }
-
-                        setStatus('scanning', 'Descargando PDF...');
-                        await loadFile(currentScanId);
-                        break;
-
-                    case 'error':
-                        clearInterval(pollingInterval);
-                        setError(data.message || 'Error en el escáner');
-                        break;
-
-                    default:
-                        break;
-                }
-
-            } catch (err) {
-                if (!window._pollErrors) window._pollErrors = 0;
-                window._pollErrors++;
-
-                if (window._pollErrors >= 3) {
-                    clearInterval(pollingInterval);
-                    window._pollErrors = 0;
-                    setError('Error de conexión con el servidor');
-                }
-            }
-        }
-
-        async function loadFile(scanId) {
-            try {
-                const res = await fetch(`/scanner/download?scan_id=${encodeURIComponent(scanId)}`);
-
-                if (!res.ok) {
-                    const err = await res.json().catch(() => ({}));
-                    throw new Error(err.error || 'No se pudo descargar el PDF');
-                }
-
-                const blob = await res.blob();
-                const filename = 'documento.pdf';
-                const file = new File([blob], filename, { type: 'application/pdf' });
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(file);
-
-                inputEl.files = dataTransfer.files;
-                inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-
-                if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
-                currentBlobUrl = URL.createObjectURL(blob);
-
-                showPdfViewer(currentBlobUrl);
-
-                fileNameEl.textContent = filename;
-                fileSizeEl.textContent = formatBytes(blob.size);
-                filePreview.style.display = 'flex';
-                scannerBox.className = 'ready';
-                submitBtn.disabled = false;
-
-                setStatus('ready', 'Documento listo para enviar');
-                showToast('PDF cargado correctamente', 'success');
-
-                await confirmFile(scanId);
-
-            } catch (err) {
-                setError('No se pudo cargar el PDF: ' + err.message);
-            }
-        }
-
-        async function confirmFile(scanId) {
-            try {
-                await fetch('/scanner/confirm', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': CSRF,
-                    },
-                    body: JSON.stringify({ scan_id: scanId }),
-                });
-            } catch {}
-        }
-
-        function showPdfViewer(blobUrl) {
-            const viewer = document.getElementById('pdf-viewer-container');
-            const iframe = document.getElementById('pdf-iframe');
-            iframe.src = blobUrl;
-            viewer.style.display = 'block';
-            viewer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-
-        function closePdfViewer() {
-            const viewer = document.getElementById('pdf-viewer-container');
-            const iframe = document.getElementById('pdf-iframe');
-            viewer.style.display = 'none';
-            iframe.src = '';
-        }
-
-        function reopenViewer() {
-            if (currentBlobUrl) showPdfViewer(currentBlobUrl);
-        }
-
-        function downloadPdf() {
-            if (!currentBlobUrl) return;
-            const a = document.createElement('a');
-            a.href = currentBlobUrl;
-            a.download = fileNameEl.textContent || 'documento.pdf';
-            a.click();
-        }
-
-        function clearFile() {
-            if (pollingInterval) {
-                clearInterval(pollingInterval);
-                pollingInterval = null;
-            }
-
-            window._pollErrors = 0;
-            inputEl.value = '';
-            filePreview.style.display = 'none';
-            submitBtn.disabled = true;
-            scannerBox.className = '';
-            closePdfViewer();
-
-            if (currentBlobUrl) {
-                URL.revokeObjectURL(currentBlobUrl);
-                currentBlobUrl = null;
-            }
-
-            currentScanId = null;
-            pollCount = 0;
-            setStatus('idle', 'Presiona "Escanear documento" y luego usa el botón del Epson');
-            setBusy(false);
-        }
-
-        async function checkAgentStatus() {
-            const dot = document.getElementById('agent-dot');
-            const text = document.getElementById('agent-status-text');
-
-            try {
-                const res = await fetch('/scanner/agent-ping', {
-                    signal: AbortSignal.timeout(4000)
-                });
-
-                if (!res.ok) {
-                    setAgentUnknown(dot, text);
-                    return;
-                }
-
-                const data = await res.json();
-
-                if (data.online) {
-                    dot.style.background = '#22c55e';
-                    text.style.color = '#16a34a';
-                    text.style.fontWeight = '600';
-                    text.textContent = 'Agente activo ✓';
+                    setError('El agente no respondió o Epson no generó el PDF a tiempo.');
                 } else {
-                    setAgentInactive(dot, text);
+                    setStatus('scanning', `Esperando el PDF del Epson... (${pollCount * 2}s)`);
                 }
-            } catch {
-                setAgentUnknown(dot, text);
-            }
+                break;
 
-            setTimeout(checkAgentStatus, 10000);
+            case 'scanning':
+                setStatus('scanning', 'Escanea ahora en el Epson o ejecuta el Job de Document Capture Pro...');
+                pollCount = Math.min(pollCount, POLL_MAX_IDLE - 1);
+                break;
+
+            case 'completed':
+            case 'ready':
+                clearInterval(pollingInterval);
+                if (!data.filename) {
+                    setError('El servidor no devolvió el nombre del archivo.');
+                    return;
+                }
+                setStatus('scanning', 'Descargando PDF...');
+                await loadFile(currentScanId);
+                break;
+
+            case 'error':
+                clearInterval(pollingInterval);
+                setError(data.message || 'Error en el escáner');
+                break;
+
+            default:
+                break;
         }
 
-        function setAgentInactive(dot, text) {
-            dot.style.background = '#f59e0b';
-            text.style.color = '#92400e';
-            text.style.fontWeight = 'normal';
-            text.textContent = 'Agente no detectado';
+    } catch (err) {
+        if (!window._pollErrors) window._pollErrors = 0;
+        window._pollErrors++;
+
+        if (window._pollErrors >= 3) {
+            clearInterval(pollingInterval);
+            window._pollErrors = 0;
+            setError('Error de conexión con el servidor');
+        }
+    }
+}
+
+// ── Descarga el PDF y lo inyecta en el input ──────────────────────────────────
+async function loadFile(scanId) {
+    try {
+        const res = await fetch(`/scanner/download?scan_id=${encodeURIComponent(scanId)}`);
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'No se pudo descargar el PDF');
         }
 
-        function setAgentUnknown(dot, text) {
-            dot.style.background = '#e2e8f0';
-            text.style.color = '#94a3b8';
-            text.style.fontWeight = 'normal';
-            text.textContent = 'Sin conexión';
+        const blob     = await res.blob();
+        currentBlob    = blob; // guarda para poder renombrar después
+
+        const filename = getFilename();
+
+        assignFileToInput(blob, filename);
+
+        if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+        currentBlobUrl = URL.createObjectURL(blob);
+
+        showPdfViewer(currentBlobUrl);
+
+        fileNameEl.textContent    = filename;
+        fileSizeEl.textContent    = formatBytes(blob.size);
+        filePreview.style.display = 'flex';
+        scannerBox.className      = 'ready';
+        submitBtn.disabled        = false;
+
+        // Muestra la sección del nombre
+        document.getElementById('filename-section').style.display = 'block';
+
+        setStatus('ready', 'Documento listo para enviar');
+        showToast('PDF cargado correctamente', 'success');
+
+        await confirmFile(scanId);
+
+    } catch (err) {
+        setError('No se pudo cargar el PDF: ' + err.message);
+    }
+}
+
+// ── Confirma al servidor que el PDF fue tomado ────────────────────────────────
+async function confirmFile(scanId) {
+    try {
+        await fetch('/scanner/confirm', {
+            method:  'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': CSRF,
+            },
+            body: JSON.stringify({ scan_id: scanId }),
+        });
+    } catch {}
+}
+
+// ── Visor PDF ─────────────────────────────────────────────────────────────────
+function showPdfViewer(blobUrl) {
+    const viewer = document.getElementById('pdf-viewer-container');
+    const iframe = document.getElementById('pdf-iframe');
+    iframe.src   = blobUrl;
+    viewer.style.display = 'block';
+    viewer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closePdfViewer() {
+    const viewer = document.getElementById('pdf-viewer-container');
+    const iframe = document.getElementById('pdf-iframe');
+    viewer.style.display = 'none';
+    iframe.src = '';
+}
+
+function reopenViewer() {
+    if (currentBlobUrl) showPdfViewer(currentBlobUrl);
+}
+
+function downloadPdf() {
+    if (!currentBlobUrl) return;
+    const a    = document.createElement('a');
+    a.href     = currentBlobUrl;
+    a.download = getFilename();
+    a.click();
+}
+
+// ── Limpia todo ───────────────────────────────────────────────────────────────
+function clearFile() {
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+    }
+
+    window._pollErrors = 0;
+    currentBlob        = null;
+    inputEl.value      = '';
+    filePreview.style.display = 'none';
+    submitBtn.disabled        = true;
+    scannerBox.className      = '';
+
+    // Limpia el campo de nombre y oculta la sección
+    const filenameInput = document.getElementById('filename-input');
+    if (filenameInput) filenameInput.value = '';
+    document.getElementById('filename-section').style.display = 'none';
+
+    closePdfViewer();
+
+    if (currentBlobUrl) {
+        URL.revokeObjectURL(currentBlobUrl);
+        currentBlobUrl = null;
+    }
+
+    currentScanId = null;
+    pollCount     = 0;
+    setStatus('idle', 'Presiona "Escanear documento" y luego usa el botón del Epson');
+    setBusy(false);
+}
+
+// ── Estado del agente ─────────────────────────────────────────────────────────
+async function checkAgentStatus() {
+    const dot  = document.getElementById('agent-dot');
+    const text = document.getElementById('agent-status-text');
+
+    try {
+        const res = await fetch('/scanner/agent-ping', {
+            signal: AbortSignal.timeout(4000)
+        });
+
+        if (!res.ok) {
+            setAgentUnknown(dot, text);
+            return;
         }
 
-        function showDownloadInstructions() {
-            setTimeout(() => {
-                document.getElementById('download-instructions').style.display = 'block';
-            }, 500);
-        }
+        const data = await res.json();
 
-        function setBusy(busy) {
-            scanBtn.disabled = busy;
-            scanBtn.innerHTML = busy
-                ? '<span class="spinner"></span> Esperando PDF...'
-                : 'Escanear documento';
+        if (data.online) {
+            dot.style.background  = '#22c55e';
+            text.style.color      = '#16a34a';
+            text.style.fontWeight = '600';
+            text.textContent      = 'Agente activo ✓';
+        } else {
+            setAgentInactive(dot, text);
         }
+    } catch {
+        setAgentUnknown(dot, text);
+    }
 
-        function setStatus(type, message) {
-            const spinner = type === 'scanning'
-                ? '<span class="spinner"></span>'
-                : '';
-            statusMsg.innerHTML = spinner + message;
-        }
+    setTimeout(checkAgentStatus, 10000);
+}
 
-        function setError(message) {
-            scannerBox.className = 'error';
-            setStatus('error', '✕ ' + message);
-            setBusy(false);
-            showToast(message, 'error');
-        }
+function setAgentInactive(dot, text) {
+    dot.style.background  = '#f59e0b';
+    text.style.color      = '#92400e';
+    text.style.fontWeight = 'normal';
+    text.textContent      = 'Agente no detectado';
+}
 
-        function formatBytes(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-            return (bytes / 1048576).toFixed(1) + ' MB';
-        }
+function setAgentUnknown(dot, text) {
+    dot.style.background  = '#e2e8f0';
+    text.style.color      = '#94a3b8';
+    text.style.fontWeight = 'normal';
+    text.textContent      = 'Sin conexión';
+}
 
-        function showToast(message, type = 'info') {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.className = `show ${type}`;
-            setTimeout(() => { toast.className = type; }, 3000);
-        }
+function showDownloadInstructions() {
+    setTimeout(() => {
+        document.getElementById('download-instructions').style.display = 'block';
+    }, 500);
+}
 
-        window.addEventListener('load', checkAgentStatus);
-    </script>
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setBusy(busy) {
+    scanBtn.disabled  = busy;
+    scanBtn.innerHTML = busy
+        ? '<span class="spinner"></span> Esperando PDF...'
+        : 'Escanear documento';
+}
+
+function setStatus(type, message) {
+    const spinner = type === 'scanning'
+        ? '<span class="spinner"></span>'
+        : '';
+    statusMsg.innerHTML = spinner + message;
+}
+
+function setError(message) {
+    scannerBox.className = 'error';
+    setStatus('error', '✕ ' + message);
+    setBusy(false);
+    showToast(message, 'error');
+}
+
+function formatBytes(bytes) {
+    if (bytes < 1024)    return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function showToast(message, type = 'info') {
+    const toast       = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className   = `show ${type}`;
+    setTimeout(() => { toast.className = type; }, 3000);
+}
+
+window.addEventListener('load', checkAgentStatus);
+</script>
+
 </body>
-
 </html>
